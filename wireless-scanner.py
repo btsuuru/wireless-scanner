@@ -20,7 +20,7 @@ def detectaSO():
 		sys.exit(0)
 
 def pegaMAC():
-	out= commands.getoutput('iwlist scan | grep -E "Address|ESSID"')
+	out= commands.getoutput('iwlist wlan0 scan | grep -E "Address|ESSID"')
 	return out
 
 def separa(info_vet):
@@ -34,8 +34,6 @@ def separa(info_vet):
 def tiraError(info_vet):
 	for i in range(len(info_vet)):
 		if "Interface doesn\'t support scanning." in info_vet[i]:
-			print 'tem'
-			print i
 			info_vet.remove(info_vet[i])
 	return info_vet
 
@@ -49,7 +47,7 @@ def tiraCell():
 		if i < 9:
 			straux = straux + "0" + str((i+1)) + " - Address: "
 		else:
-			straux = straux + str((i+1)) + " - Address: "	
+			straux = straux + str((i+1)) + " - Address: "
 		macs.append(aux[i].replace(straux,""))
 
 def tiraESSID():
@@ -60,132 +58,126 @@ def tiraESSID():
 	for i in range(len(aux)):
 		nomes.append(aux[i].replace("ESSID:", "").replace("\"", ""))
 
-def tiraRepetidos():
-	for i in range(len(arvore)):
-		for ii in range(len(arvore[i])):
-			for iii in range(len(macs)):
-				if arvore[i][0] == macs[iii] and arvore[i][ii] == nomes[iii]:
-					del macs[iii]
-					del nomes[iii]
-					break
+class Dispositivo:
+	def __init__(self):
+		self.mac = ""
+		self.bssid = []
+		self.qtBssid = 0
+		self.horarios1 = []
+		self.horarios2 = []
 
-def junta():
-	for i in range(len(macs)):
-		tem = jaTem(macs[i])
-		if tem != -1:# se ja tem entra aqui
-			print 'ja tem'
-			posicoes = jaTemBSSID(arvore[tem], nomes)
-			for ii in range(len(posicoes)):
-				arvore[tem].append(nomes[posicoes[ii]])
-				arvore[tem].append(horario[posicoes[ii]])
-		else:
-			aux = []
-			aux.append(macs[i].strip())
-			aux.append(nomes[i])
-			aux.append(horario[i])
-			arvore.append(aux)
-'''			for iii in range(len(macs)):
-				if macs[i] == macs[iii] and jaTem(macs) == -1:
-					aux.append(macs[i].strip())
-					aux.append(nomes[iii])
-					aux.append(horario[iii])'''
+	def novo(self, m, b, h1, h2): # m = MAC; b = BSSID; h = HORARIO
+		self.mac = m
+		self.bssid.append(b)
+		self.qtBssid = 1
+		self.horarios1.append(h1)
+		self.horarios2.append(h2)
 
-def jaTem(mac):
-	for i in range(len(arvore)):
-		if arvore[i][0] == mac:
-			return i
-	return -1
+	def atualizaHorario(hr, pos):
+		self.horarios2[pos] = hr
 
-def jaTemBSSID(galho, bssid_list):
-	posicoes = []
-	for i in range(len(galho)):
-		achou = False;
-		aux = 0
-		#if i == 0:
-		#	i = i + 1
-		for ii in range(len(bssid_list)):
-			aux = ii
-			if ii == 0:
-				print 'galho ', galho[i], 'bssid ', bssid_list[ii]
-			if galho[i] == bssid_list[ii] and galho[i][0] == macs[ii]:
-				achou = True
-				break
-		if not achou:
-			posicoes.append(ii)
-	return posicoes
+	def insereBSSID(self, bssid, h1, h2):
+		self.bssid.append(bssid)
+		self.horarios1.append(h1)
+		self.horarios2.append(h2)
+		self.qtBssid = self.qtBssid + 1
 
-def imprime():
-	for i in range(len(macs)):
-		print macs[i]
-		print nomes[i]
-		print horario[i]
-		print 
+class Arvore:
+	def __init__(self):
+		self.dispositivos = []
+		self.quantidade = 0
 
-def imprimeArvore():
-	for i in range(len(arvore)):
-		print '┌──■', arvore[i][0]
-		for ii in range(len(arvore[i])):
-			if ii > 0 and ii < len(arvore[i])-1:
-				print '├───────■ ', arvore[i][ii]
-			elif ii == len(arvore[i])-1:
-				print '└───────■ ', arvore[i][ii]
-		print 
+	def insere(self, m, b, h1, h2):
+		disp = Dispositivo()
+		disp.novo(m, b, h1, h2)
+		self.dispositivos.append(disp)
+		self.quantidade = self.quantidade + 1
 
-def escreverArquivo():
+	def imprimeArvore(self):
+		for dispositivo in self.dispositivos:
+			print '┌──■', dispositivo.mac
+			for i in range(len(dispositivo.bssid)):
+				if i != dispositivo.qtBssid-1:
+					print '├───────■ BSSID: ', dispositivo.bssid[i]
+					print '├───────■ HR INICIO: ', str(dispositivo.horarios1[i])[0:19]
+					print '├───────■ HR FIM:    ', str(dispositivo.horarios2[i])[0:19]
+				else:
+					print '├───────■ BSSID: ', dispositivo.bssid[i]
+					print '├───────■ HR INICIO: ', str(dispositivo.horarios1[i])[0:19]
+					print '└───────■ HR FIM:    ', str(dispositivo.horarios2[i])[0:19]
+			print
+
+	def insereArvore(self, m, b, h1, h2):
+		for dispositivo in self.dispositivos:
+			if dispositivo.mac == m:
+				for i in range(len(dispositivo.bssid)):
+					if dispositivo.bssid[i] == b:
+						dispositivo.horarios2[i] = h2
+						return
+				dispositivo.insereBSSID(b, h1, h2)
+				return
+		self.insere(m, b, h1, h2)
+
+def escreverArquivo(arvore):
 	arquivo = open('/home/bruno/Hacking/Ferramentas/sniffaps/aps.csv', 'a+')
-	arquivo.write('MAC,BSSID,1ª VEZ VISTO PELO SCAN,\n')
-	for i in range(len(arvore)):
-		for ii in range(len(arvore[i])):
-			if ii == 0:
-				arquivo.write(arvore[i][0]+',')
-			elif ii > 0:
-				arquivo.write(str(arvore[i][ii])+',')
-			if ii == len(arvore[i])-1:
-				arquivo.write('\n')
+	arquivo.write('MAC,BSSID,1ª VEZ VISTO PELO SCAN,ULTIMA VEZ VISTO PELO SCAN,TEMPO ONLINE,\n')
+	for dispositivo in arvore.dispositivos:
+		for i in range(len(dispositivo.bssid)):
+			arquivo.write(dispositivo.mac +',')
+			arquivo.write(dispositivo.bssid[i]+',')
+			arquivo.write(str(dispositivo.horarios1[i])[0:19]+',')
+			arquivo.write(str(dispositivo.horarios2[i])[0:19]+',')
+			arquivo.write(str(dispositivo.horarios2[i]-dispositivo.horarios1[i])[0:7]+'\n')
 	arquivo.close()
 
-def loop():
+def loop(arvore):
 	while True:
-		print '========='
 		info = pegaMAC()
+		print '-'
 		info_vet = info.split('\n')
 		#info_vet = tiraError(info_vet)
-		del info_vet[0:4]
+		#del info_vet[0:4]
 		separa(info_vet)
 		tiraCell()
 		tiraESSID()
-		tiraRepetidos()
-		junta()
+		hrScan = datetime.now()
+		for i in range(len(macs)):
+			arvore.insereArvore(macs[i], nomes[i], horario[i], hrScan)
 		os.system('clear')
-		imprimeArvore()
+		arvore.imprimeArvore()
 		time.sleep(0)
 		del macs[0:len(macs)]
 		del nomes[0:len(nomes)]
 		del horario[0:len(horario)]
 
 def semloop():
-	print '========='
 	info = pegaMAC()
+	print '-'
 	info_vet = info.split('\n')
 	#info_vet = tiraError(info_vet)
 	del info_vet[0:4]
 	separa(info_vet)
 	tiraCell()
 	tiraESSID()
-	junta()
-	os.system('clear')
-	imprimeArvore()
-	#time.sleep(10)
-	macs = []
-	nomes = []
-	horario = []
+	hrScan = datetime.now()
+	for i in range(len(macs)):
+		arvore.insereArvore(macs[i], nomes[i], horario[i], hrScan)
+	arvore.imprimeArvore()
+	#os.system('clear')
+	time.sleep(0)
+	del macs[0:len(macs)]
+	del nomes[0:len(nomes)]
+	del horario[0:len(horario)]
 
 def main():
 	try:
 		detectaSO()
-		loop()
-		#semloop()
+		arvore = Arvore()
+		loop(arvore)
 		#escreverArquivo()
 	except KeyboardInterrupt:
+		op = raw_input("\rDeseja escrever a saída em um arquivo?[S/n]: ")
+		if op == 'S' or op == '':
+			escreverArquivo(arvore)
 		sys.exit(0)
 main()
